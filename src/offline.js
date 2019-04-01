@@ -94,21 +94,21 @@ L.TileLayer.Offline = L.TileLayer.extend({
             // Following code taken from https://github.com/ghybs/Leaflet.TileLayer.Fallback
 
             // 'this' is bound to the Tile Layer in L.TileLayer.prototype.createTile.
-		    const layer = this; 
-		    const originalCoords = tile._originalCoords;
-		    const currentCoords
+            const layer = this; 
+            const originalCoords = tile._originalCoords;
+            const currentCoords
                 = tile._currentCoords 
                 = tile._currentCoords || layer._createCurrentCoords( originalCoords );
-		    const fallbackZoom
+            const fallbackZoom
                 = tile._fallbackZoom
                 = tile._fallbackZoom === undefined
                     ? originalCoords.z - 1
                     : tile._fallbackZoom - 1;
-		    const scale 
+            const scale 
                 = tile._fallbackScale
                 = (tile._fallbackScale || 1) * 2;
-		    const tileSize = layer.getTileSize();
-		    const style = tile.style;
+            const tileSize = layer.getTileSize();
+            const style = tile.style;
 
             // If no lower zoom tiles are available, fallback to errorTile.
             if( fallbackZoom < layer.options.minNativeZoom ) {
@@ -131,7 +131,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
             const top = (originalCoords.y - currentCoords.y * scale) * tileSize.y;
             style.marginTop = (-top) + 'px';
             const left = (originalCoords.x - currentCoords.x * scale) * tileSize.x;
-		    style.marginLeft = (-left) + 'px';
+            style.marginLeft = (-left) + 'px';
 
             // Crop (clip) image.
             // `clip` is deprecated, but browsers support for `clip-path: inset()` is far behind.
@@ -145,7 +145,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
                 urlFallback:    fallbackURL
             });
 
-		    tile.src = fallbackURL;
+            tile.src = fallbackURL;
 
             return;
         }
