@@ -38,21 +38,31 @@ L.TileLayer.Offline = L.TileLayer.extend({
         /**
          * The location which cached tiles are stored under.
          */
-        cachePath = 'offline_map_tiles'
+        cachePath: 'offline_map_tiles',
+        /**
+         * Minimum zoom.
+         */
+        minNativeZoom: 0
     },
 
     initialize: function( sourceLayer, options ) {
-        Util.setOptions( this, options );
+        Object.assign( this.options, options );
         // Standard path pattern for offline cached tiles.
         this._url = '{cachePath}/{layer_id}/{z}-{x}-{y}.{format}';
         // Source tile layer.
         this._sourceLayer = sourceLayer;
+        // Bind methods from prototype that we want to override.
+        this._createTile = L.TileLayer.prototype.createTile.bind( this );
+        this.__tileOnError = L.TileLayer.prototype._tileOnError.bind( this );
     },
 
     createTile: function( coords, done ) {
 
         // Create a tile in the standard way.
-        const tile = super.createTile( coords, done );
+        const tile = this._createTile( coords, done );
+
+        // Following needed by the fallback code (see _tileOnError):
+        tile._originalCoords = coords;
 
         // Set the url we're about to load on an additional property.
         // This is used in the error handler to detect when the cached
@@ -116,7 +126,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
 
             // If no lower zoom tiles are available, fallback to errorTile.
             if( fallbackZoom < layer.options.minNativeZoom ) {
-                return super._tileOnError( done, tile, e );
+                return this.__tileOnError( done, tile, e );
             }
 
             // Modify tilePoint for replacement img.
@@ -155,8 +165,17 @@ L.TileLayer.Offline = L.TileLayer.extend({
         }
 
         // Fallback to error tile.
-        super._tileOnError( done, tile, e );
-    }
+        this.__tileOnError( done, tile, e );
+    },
+
+    /**
+     * Take from https://github.com/ghybs/Leaflet.TileLayer.Fallback
+     */
+    _createCurrentCoords: function( originalCoords ) {
+		const currentCoords = this._wrapCoords( originalCoords );
+		currentCoords.fallback = true;
+		return currentCoords;
+	}
 
 });
 
