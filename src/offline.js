@@ -20,7 +20,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
          * for cached tiles; an alternative value only needs to be provided
          * if multiple layers are being used.
          */
-        layer_id: 'default',
+        layer_id: 'layer',
         /**
          * Cached tile image format.
          */
@@ -34,13 +34,17 @@ L.TileLayer.Offline = L.TileLayer.extend({
          * If true, then use scaled versions of available tiles as fallbacks
          * for missing tiles.
          */
-        useScaledFallback: true
+        useScaledFallback: true,
+        /**
+         * The location which cached tiles are stored under.
+         */
+        cachePath = 'offline_map_tiles'
     },
 
     initialize: function( sourceLayer, options ) {
         Util.setOptions( this, options );
         // Standard path pattern for offline cached tiles.
-        this._url = 'offline_map_tiles/{layer_id}/{z}/{x}-{y}.{format}';
+        this._url = '{cachePath}/{layer_id}/{z}-{x}-{y}.{format}';
         // Source tile layer.
         this._sourceLayer = sourceLayer;
     },
@@ -136,7 +140,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
             // Crop (clip) image.
             // `clip` is deprecated, but browsers support for `clip-path: inset()` is far behind.
             // http://caniuse.com/#feat=css-clip-path
-            style.clip = `rect(${top}px ${left + tileSize.x}px ${top + tileSize.y}px ${left}px)`;
+            style.clip = `rect(${top}px ${left+tileSize.x}px ${top+tileSize.y}px ${left}px)`;
 
             layer.fire('tilefallback', {
                 tile:           tile,
@@ -155,4 +159,10 @@ L.TileLayer.Offline = L.TileLayer.extend({
     }
 
 });
+
+// Factory method.
+L.tileLayer.offline = function( source, options ) {
+    return new L.TileLayer.Offline( source, options );
+}
+
 
