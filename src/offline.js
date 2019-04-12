@@ -54,6 +54,22 @@ L.TileLayer.Offline = L.TileLayer.extend({
         // Bind methods from prototype that we want to override.
         this._createTile = L.TileLayer.prototype.createTile.bind( this );
         this.__tileOnError = L.TileLayer.prototype._tileOnError.bind( this );
+        // Database of available offline tile URLs.
+        this._offlineTiles = new Set();
+    },
+
+    /**
+     * Load the database of available offline tile URLs. This is done to avoid
+     * generating a 404 request for tiles which aren't offline available, and
+     * to improve overall performance; NOTE that offline tiles won't be used if
+     * this isn't called first!
+     */
+    loadCacheDB: async function() {
+        const { options: { cachePath, layer_id } } = this;
+        const url = `query.api?path$prefix=${cachePath}/${layer_id}&$format=keys`;
+        const response = await fetch( url );
+        const tilePaths = await response.json();
+        this._offlineTiles = new Set( tilePaths );
     },
 
     createTile: function( coords, done ) {
@@ -64,31 +80,58 @@ L.TileLayer.Offline = L.TileLayer.extend({
         // Following needed by the fallback code (see _tileOnError):
         tile._originalCoords = coords;
 
+        const { options: { cacheOnly } } = this;
+
+        if( !cacheOnly ) {
+
+            // Read the source layer's URL for this tile.
+            // Note hack here to ensure source layer knows the base zoom level.
+            const { _sourceLayer, _tileZoom } = this;
+            _sourceLayer._tileZoom = _tileZoom;
+            const sourceURL = _sourceLayer.getTileUrl( coords );
+
+            // If the tile doesn't have a URL (because no offline tile
+            // available) then use the source layer's URL.
+            const { src } = tile;
+            if( src === '' ) {
+                tile.src = sourceURL;
+                _source_url = null;
+            }
+            else {
+                // Set source tile layer url on result. Code in error handler
+                // will attempt to load this url if no cached tile is found.
+                tile._source_url = _sourceLayer.getTileUrl( coords );
+            }
+        }
+
         // Set the url we're about to load on an additional property.
         // This is used in the error handler to detect when the cached
         // tile has failed to load.
         tile._src = tile.src;
 
-        // Set source tile layer url on result. Code in error handler
-        // will attempt to load this url if no cached tile is found.
-        // Note hack here to ensure source layer knows the base zoom level.
-        const { _sourceLayer, _tileZoom } = this;
-        _sourceLayer._tileZoom = _tileZoom;
-        tile._source_url = _sourceLayer.getTileUrl( coords );
-
         return tile;
     },
 
+    /**
+     * Get the *offline* tile URL.
+     */
     getTileUrl: function( coords ) {
 
         // Get x, y, z coordinates.
         const { x, y, z = this._getZoomForUrl() } = coords;
 
         // Other stuff we need.
-        const { _id, _url, options } = this;
+        const { _id, _url, _offlineTiles, _sourceLayer, options } = this;
 
         // Evaluate the path pattern template.
-        return L.Util.template( _url, L.extend({ x, y, z }, options ) );
+        const url = L.Util.template( _url, L.extend({ x, y, z }, options ) );
+
+        // See if the URL exists in the offline tile DB.
+        if( _offlineTiles.has( url ) ) {
+            return url;
+        }
+        // No offline tile available.
+        return '';
     },
 
     _tileOnError: function( done, tile, e ) {
@@ -97,7 +140,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
 
         // Try loading tile from original source tile server if failed
         // to load from cache.
-        if( src === _src && !cacheOnly ) {
+        if( _source_url && src !== _source_url ) {
             // Retry with source layer.
             tile.src = _source_url;
             return;
