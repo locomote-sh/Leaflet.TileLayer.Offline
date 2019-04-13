@@ -42,7 +42,12 @@ L.TileLayer.Offline = L.TileLayer.extend({
         /**
          * Minimum zoom.
          */
-        minNativeZoom: 0
+        minNativeZoom: 0,
+        /**
+         * URL to use when an offline tile image isn't available.
+         */
+        noTileURL: 'file://null/'
+
     },
 
     initialize: function( sourceLayer, options ) {
@@ -80,7 +85,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
         // Following needed by the fallback code (see _tileOnError):
         tile._originalCoords = coords;
 
-        const { options: { cacheOnly } } = this;
+        const { options: { cacheOnly, noTileURL } } = this;
 
         if( !cacheOnly ) {
 
@@ -93,7 +98,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
             // If the tile doesn't have a URL (because no offline tile
             // available) then use the source layer's URL.
             const { src } = tile;
-            if( src === '' ) {
+            if( src === noTileURL ) {
                 tile.src = sourceURL;
                 _source_url = null;
             }
@@ -131,7 +136,7 @@ L.TileLayer.Offline = L.TileLayer.extend({
             return url;
         }
         // No offline tile available.
-        return '';
+        return options.noTileURL;
     },
 
     _tileOnError: function( done, tile, e ) {
